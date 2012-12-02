@@ -1,0 +1,253 @@
+#!/bin/bash
+
+# Deleting all locale files on system
+# *not* listed in /etc/locale.nopurge
+
+set -e
+
+LOCALEDIRS="/usr/share/locale /usr/local/share/locale /usr/kde/?.?/share/locale /opt/sun-jdk-*/jre/lib/locale /opt/sun-jre-bin-*/lib/locale /usr/lib/locale"
+MANPAGEDIRS="/usr/share/man /usr/man /usr/local/share/man /usr/kde/?.?/share/man /usr/kde/?.?/man /opt/sun-jdk-*/man /opt/sun-jre-bin-*/man"
+LOCALELIST="/var/cache/localepurge/localelist"
+CONFIGFILE="/etc/locale.nopurge"
+VERSION="0.5.2"
+
+LOCALETOTAL=0
+MANTOTAL=0
+
+GOOD=$'\e[32;01m'
+WARN=$'\e[33;01m'
+BAD=$'\e[31;01m'
+NORMAL=$'\e[0m'
+HILITE=$'\e[36;01m'
+BRACKET=$'\e[34;01m'
+BOLD=$'\e[1m'
+
+eerror () {
+    echo -e " ${BAD}*${NORMAL} $*"
+}
+
+ewarn () {
+    echo -e " ${WARN}*${NORMAL} $*"
+}
+
+einfo () {
+    echo -e " ${GOOD}*${NORMAL} $*"
+}
+etab () {
+    echo -e " ${GOOD}*${NORMAL} $*"
+}
+
+ayuda () {
+    echo "${HILITE}localepurge${NORMAL} for ${BOLD}Gentoo Linux${NORMAL} ${BRACKET}[${NORMAL} ${GOOD}${VERSION}${NORMAL} ${BRACKET}]${NORMAL}"
+    echo -e " " "by bass@gentoo.org"
+    echo
+    einfo "Remember that you must edit ${CONFIGFILE}"
+    echo
+    einfo "Usage: `basename $0` [options]"
+    echo
+    etab "${BOLD}-help (-h)     ${NORMAL}  : show this help."
+    etab "${BOLD}-debug (-d)    ${NORMAL}  : debug mode."
+    etab "${BOLD}-verbose (-v)  ${NORMAL}  : verbose mode."
+    etab "${BOLD}-nocolor (-nc) ${NORMAL}  : no color mode."
+    etab "${BOLD}-pretend (-p) ${NORMAL}   : pretend mode."
+    etab "${BOLD}-version	${NORMAL}      : show version."
+    echo
+}
+
+version () {
+    einfo "${BRACKET}[${NORMAL} ${GOOD}${VERSION}${NORMAL} ${BRACKET}]${NORMAL}"
+}
+
+# Check options in CONFIGFILE
+
+grep -xq SHOWFREEDSPACE ${CONFIGFILE} && SHOWFREEDSPACE=enabled
+grep -xq VERBOSE ${CONFIGFILE} && VERBOSE=enabled
+grep -xq NOCOLOR ${CONFIGFILE} &&
+        unset GOOD WARN BAD NORMAL HILITE BRACKET BOLD
+
+# We need to loop through for no color first, otherwise options that exit 
+# will make us ignore nocolor, so we might as well loop for debug first as well
+
+for x in $@
+do
+    if [ "$x" = "-debug" ] || [ "$x" = "-d" ]; then
+        set -x
+    fi
+
+    if [ "$x" = "-nocolor" ] || [ "$x" = "-nc" ]; then
+        unset GOOD WARN BAD NORMAL HILITE BRACKET BOLD
+    fi
+
+done
+
+# Loop through the rest of the options
+
+for x in $@
+do
+
+    if [ "$x" = "-verbose" ] || [ "$x" = "-v" ]; then
+        VERBOSE=enabled
+    fi
+
+    if [ "$x" = "-version" ] ; then
+        version
+	exit 0
+    fi
+
+    if [ "$x" = "-p" ] || [ "$x" = "-pretend" ]; then
+        PRETEND=enabled
+    fi
+
+    if [ "$x" = "-help" ] || [ "$x" = "-h" ]; then
+	ayuda
+	exit 0
+    fi
+
+done
+
+# Do nothing and report why if no valid configuration file exists:
+
+if [ ! -f ${CONFIGFILE} ]
+    then
+        eerror " No ${CONFIGFILE} file present, exiting ..."
+        exit 0
+    else
+        if [ "`grep -x ^NEEDSCONFIGFIRST ${CONFIGFILE}`" ]
+            then
+                echo ""
+                einfo "    You have to configure \"${CONFIGFILE}\" "
+                echo ""
+                einfo "    to make $0 actually start to function."
+                echo ""
+                einfo "    Nothing to be done, exiting ..."
+                echo ""
+                exit 0
+        fi
+fi
+
+# Prune the locale list using CONFIGFILE as a list of regex patterns:
+
+PURGELIST=`grep -xvf ${CONFIGFILE} "${LOCALELIST}"`
+
+# Getting rid of superfluous locale files in $LOCALEDIR:
+
+purgelocale () {
+    local LOCALEDIR="$1"
+if [ -d $LOCALEDIR ]; then
+
+    if [ "$SHOWFREEDSPACE" = "enabled" ]; then
+        LOCALEBEFORE=$(df -P $LOCALEDIR | awk '{if ( NR==2 ) { print $3 }}')
+    fi
+
+    if [ "$VERBOSE" = "enabled" ]; then
+        einfo "localepurge: processing locale files in ${LOCALEDIR} ..."
+        for LOCALE in `/bin/ls ${LOCALEDIR}` 
+         do
+          if echo "${PURGELIST}" | grep -xq ${LOCALE}; then
+            if [ -d ${LOCALEDIR}/${LOCALE}/LC_MESSAGES ]; then
+                if [ "${PRETEND}" = "enabled" ]; then 
+                    echo "${LOCALEDIR}/${LOCALE}"
+                else
+                    /bin/rm -vf `find ${LOCALEDIR}/${LOCALE} -type f`
+                fi
+            fi
+          fi
+         done
+    else
+        for LOCALE in `/bin/ls ${LOCALEDIR}`
+         do
+          if echo "${PURGELIST}" | grep -xq ${LOCALE}; then
+            if [ -d ${LOCALEDIR}/${LOCALE}/LC_MESSAGES ]; then
+                if [ "${PRETEND}" = "enabled" ]; then 
+                    echo "${LOCALEDIR}/${LOCALE}"
+                else
+                    /bin/rm -vf `find ${LOCALEDIR}/${LOCALE} -type f`
+                fi
+            fi
+          fi
+         done
+    fi
+
+    if [ "$SHOWFREEDSPACE" = "enabled" ]; then
+        LOCALEAFTER=$(df -P $LOCALEDIR | awk '{if ( NR==2 ) { print $3 }}')
+        LOCALESUM=$(($LOCALEBEFORE - $LOCALEAFTER))
+	LOCALETOTAL=$(($LOCALETOTAL + $LOCALESUM))
+	if [ ! $LOCALEBEFORE = $LOCALEAFTER ]; then
+            einfo "localepurge: Disk space freed in $LOCALEDIR: ${BOLD}"$LOCALESUM"K${NORMAL}"
+        fi
+    fi
+fi
+}
+
+# Getting rid of localized man pages in $MANPAGEDIR
+
+purgeman () {
+    local MANPAGEDIR="$1"
+if [ -d $MANPAGEDIR ] && [ "`grep -x ^MANDELETE ${CONFIGFILE}`" ]; then
+
+    if [ "$SHOWFREEDSPACE" = "enabled" ]; then
+        MANBEFORE=$(df -P $MANPAGEDIR | awk '{if ( NR==2 ) { print $3 }}')
+        fi
+
+    if [ "$VERBOSE" = "enabled" ]; then
+        einfo "localepurge: processing man pages in ${MANPAGEDIR} ..."
+        for LOCALE in `/bin/ls ${MANPAGEDIR} | grep -v ^man[1-9]`
+         do
+          if echo "${PURGELIST}" | grep -xq ${LOCALE}; then
+            if [ -d ${MANPAGEDIR}/${LOCALE} ]; then
+                if [ "${PRETEND}" = "enabled" ]; then 
+                    echo "${MANPAGEDIR}/${LOCALE}"
+                else
+                    /bin/rm -f `find ${MANPAGEDIR}/${LOCALE} -type f`
+                fi
+            fi
+          fi
+         done
+    else
+        for LOCALE in `/bin/ls ${MANPAGEDIR} | grep -v ^man[1-9]`
+         do
+          if echo "${PURGELIST}" | grep -xq ${LOCALE}; then
+            if [ -d ${MANPAGEDIR}/${LOCALE} ]; then
+                if [ "${PRETEND}" = "enabled" ]; then 
+                    echo "${MANPAGEDIR}/${LOCALE}"
+                else
+                    /bin/rm -f `find ${MANPAGEDIR}/${LOCALE} -type f`
+                fi
+            fi
+          fi
+         done
+    fi
+
+    if [ "$SHOWFREEDSPACE" = "enabled" ]; then
+        MANAFTER=$(df -P $MANPAGEDIR | awk '{if ( NR==2 ) { print $3 }}')
+	MANSUM=$(($MANBEFORE - $MANAFTER))
+        MANTOTAL=$(($MANTOTAL + $MANSUM))
+	if [ ! $MANBEFORE = $MANAFTER ]; then
+            einfo "localepurge: Disk space freed in $MANPAGEDIR: ${BOLD}"$MANSUM"K${NORMAL}"
+        fi
+    fi
+fi
+}
+
+[ "${PRETEND}" = "enabled" ] &&
+        ewarn "If not pretending, localepurge would clear the following directories:\n"
+
+for folder in ${LOCALEDIRS}; do
+    purgelocale "$folder"
+done
+
+for folder in ${MANPAGEDIRS}; do
+    purgeman "$folder"
+done
+
+# Calculating and reporting total disk space freed:
+
+if [ "$SHOWFREEDSPACE" = "enabled" ]; then
+    if [ $MANTOTAL ] && [ $LOCALETOTAL ]; then
+        if [ ! $MANBEFORE = $MANAFTER ] && [ ! $LOCALEBEFORE = $LOCALEAFTER ]; then
+            echo ""
+            einfo "Total disk space freed by localepurge: ${BOLD}"$(($LOCALETOTAL + $MANTOTAL))"K${NORMAL}"
+            echo ""
+        fi
+    fi
+fi
