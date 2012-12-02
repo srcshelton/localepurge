@@ -9,7 +9,7 @@ LOCALEDIRS="/usr/share/locale /usr/local/share/locale /usr/kde/?.?/share/locale 
 MANPAGEDIRS="/usr/share/man /usr/man /usr/local/share/man /usr/kde/?.?/share/man /usr/kde/?.?/man /opt/sun-jdk-*/man /opt/sun-jre-bin-*/man"
 LOCALELIST="/var/cache/localepurge/localelist"
 CONFIGFILE="/etc/locale.nopurge"
-VERSION="0.5.3.3"
+VERSION="0.5.4"
 
 LOCALETOTAL=0
 MANTOTAL=0
