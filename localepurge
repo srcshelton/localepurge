@@ -13,6 +13,7 @@ VERSION="0.5.3.3"
 
 LOCALETOTAL=0
 MANTOTAL=0
+SPACETMP=0
 
 GOOD=$'\e[32;01m'
 WARN=$'\e[33;01m'
@@ -151,40 +152,56 @@ fi
 
 PURGELIST=`grep -xvf ${CONFIGFILE} "${LOCALELIST}"`
 
+
+# Deleting a filepath and optionally counting freed space
+
+remove() {
+    local REMOVEPATH="$1"
+
+    if [ "$SHOWFREEDSPACE" = "enabled" ]; then
+        SPACEBEFORE=$(df -P ${REMOVEPATH}| awk '{if ( NR==2 ) { print $3 }}')
+    fi
+
+    ${ACTION} `find ${REMOVEPATH} -type f -o -type l`
+
+    if [ "$SHOWFREEDSPACE" = "enabled" ]; then
+        SPACEAFTER=$(df -P ${REMOVEPATH} | awk '{if ( NR==2 ) { print $3 }}')
+        SPACESUM=$(($SPACEBEFORE - $SPACEAFTER))
+
+        if test $SPACESUM -gt 0 ; then
+            SPACETMP=$(($SPACETMP + $SPACESUM))
+        fi
+    fi
+}
+
 # Getting rid of superfluous locale files in $LOCALEDIR:
 
 purgelocale () {
     local LOCALEDIR="$1"
     if [ -d $LOCALEDIR ]; then
 
-        if [ "$SHOWFREEDSPACE" = "enabled" ]; then
-            LOCALEBEFORE=$(df -P $LOCALEDIR | awk '{if ( NR==2 ) { print $3 }}')
-        fi
-	
         if [ "$VERBOSE" = "enabled" ]; then
             einfo "localepurge: processing locale files in ${LOCALEDIR} ..."
         fi
 
         for LOCALE in `/bin/ls ${LOCALEDIR}`; do
-    	    if echo "${PURGELIST}" | grep -xq ${LOCALE}; then
-	        if [ -d ${LOCALEDIR}/${LOCALE}/LC_MESSAGES ]; then
+            if echo "${PURGELIST}" | grep -xq ${LOCALE}; then
+                if [ -d ${LOCALEDIR}/${LOCALE}/LC_MESSAGES ]; then
                     if [ "${LIST}" = "enabled" ]; then 
                         echo "${LOCALEDIR}/${LOCALE}"
                     else
-                        ${ACTION} `find ${LOCALEDIR}/${LOCALE} -type f -o -type l`
+                        remove "${LOCALEDIR}/${LOCALE}"
                     fi
                 fi
             fi
         done
 
         if [ "$SHOWFREEDSPACE" = "enabled" ]; then
-            LOCALEAFTER=$(df -P $LOCALEDIR | awk '{if ( NR==2 ) { print $3 }}')
-            LOCALESUM=$(($LOCALEBEFORE - $LOCALEAFTER))
-	    LOCALETOTAL=$(($LOCALETOTAL + $LOCALESUM))
-
-	    if test $LOCALESUM -gt 0 ; then
-		einfo "localepurge: Disk space freed in $LOCALEDIR: ${BOLD}"$LOCALESUM"K${NORMAL}"
-	    fi
+           if test $SPACETMP -gt 0 ; then
+               LOCALETOTAL=$SPACETMP
+               einfo "localepurge: Disk space freed in $LOCALEDIR: ${BOLD}"$SPACETMP"K${NORMAL}"
+           fi
+           SPACETMP=0
         fi
     fi
 }
@@ -195,10 +212,6 @@ purgeman () {
     local MANPAGEDIR="$1"
     if [ -d $MANPAGEDIR ] && [ "`grep -x ^MANDELETE ${CONFIGFILE}`" ]; then
 
-        if [ "$SHOWFREEDSPACE" = "enabled" ]; then
-            MANBEFORE=$(df -P $MANPAGEDIR | awk '{if ( NR==2 ) { print $3 }}')
-        fi
-
         if [ "$VERBOSE" = "enabled" ]; then
             einfo "localepurge: processing man pages in ${MANPAGEDIR} ..."
         fi
@@ -206,23 +219,21 @@ purgeman () {
         for LOCALE in `/bin/ls ${MANPAGEDIR} | grep -v ^man[1-9]`; do
             if echo "${PURGELIST}" | grep -xq ${LOCALE}; then
                 if [ -d ${MANPAGEDIR}/${LOCALE} ]; then
-                    if [ "${LIST}" = "enabled" ]; then 
+                    if [ "${LIST}" = "enabled" ]; then
                         echo "${MANPAGEDIR}/${LOCALE}"
                     else
-                        ${ACTION} `find ${MANPAGEDIR}/${LOCALE} -type f -o -type l`
+                        remove "${MANPAGEDIR}/${LOCALE}"
                     fi
                 fi
             fi
         done
 
         if [ "$SHOWFREEDSPACE" = "enabled" ]; then
-            MANAFTER=$(df -P $MANPAGEDIR | awk '{if ( NR==2 ) { print $3 }}')
-	    MANSUM=$(($MANBEFORE - $MANAFTER))
-            MANTOTAL=$(($MANTOTAL + $MANSUM))
-
-	    if test $MANSUM -gt 0 ; then
-		einfo "localepurge: Disk space freed in $MANPAGEDIR: ${BOLD}"$MANSUM"K${NORMAL}"
-	    fi
+           if test $SPACETMP -gt 0 ; then
+               MANTOTAL=$SPACETMP
+               einfo "localepurge: Disk space freed in $MANPAGEDIR: ${BOLD}"$SPACETMP"K${NORMAL}"
+           fi
+           SPACETMP=0
         fi
     fi
 }
@@ -245,7 +256,7 @@ done
 if [ "$SHOWFREEDSPACE" = "enabled" ]; then
     let TOTAL=$LOCALETOTAL+$MANTOTAL
     if test $TOTAL -lt 0; then
-	TOTAL=0
+        TOTAL=0
     fi
 
     echo ""
