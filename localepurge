@@ -43,8 +43,8 @@ etab () {
 print() {
     for x in $@; do
         if [ "${x}" = "" ]; then return 0
-	else /bin/echo $x
-	fi
+        else /bin/echo $x
+        fi
     done
 }
 
@@ -98,34 +98,34 @@ for x in $@; do
 
     if [ "$x" = "-help" ] || [ "$x" = "-h" ]; then
         ayuda
-	exit 0
+        exit 0
 
     elif [ "$x" = "-list" ] || [ "$x" = "-l" ]; then
         LIST=enabled
 
     elif [ "$x" = "-pretend" ] || [ "$x" = "-p" ]; then
         PRETEND=enabled
-	ACTION=print
-	SHOWFREEDSPACE=disabled
+        ACTION=print
+        SHOWFREEDSPACE=disabled
 
     elif [ "$x" = "-verbose" ] || [ "$x" = "-v" ]; then
         VERBOSE=enabled
 
     elif [ "$x" = "-version" ] ; then
         version
-	exit 0
+        exit 0
 
     else
         eerror "Unrecognised option: ${x}"
-	eerror "Please see `basename $0` -help"
-	exit 1
+        eerror "Please see `basename $0` -help"
+        exit 1
     fi
 
     if [ "${LIST}" = "enabled" ] && [ "${PRETEND}" = "enabled" ]; then
         eerror "Cannot have list and pretend mode enabled at the same time"
-	eerror "Please enable one at a time"
-	echo >> /dev/stderr
-	eerror "For more information, see `basename $0` -help"
+        eerror "Please enable one at a time"
+        echo >> /dev/stderr
+        eerror "For more information, see `basename $0` -help"
     fi
 
 done
