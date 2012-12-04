@@ -23,7 +23,7 @@ HILITE=$'\e[36;01m'
 BRACKET=$'\e[34;01m'
 BOLD=$'\e[1m'
 
-ACTION="/bin/rm -vf"
+ACTION="/bin/rm -f"
 
 eerror () {
     echo -e " ${BAD}*${NORMAL} $*" 2> /dev/stderr
@@ -110,6 +110,7 @@ for x in $@; do
 
     elif [ "$x" = "-verbose" ] || [ "$x" = "-v" ]; then
         VERBOSE=enabled
+        ACTION="/bin/rm -vf"
 
     elif [ "$x" = "-version" ] ; then
         version
