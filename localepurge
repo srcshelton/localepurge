@@ -5,10 +5,15 @@
 
 set -e
 
+# For use in Gentoo Prefix
+PREFIX=""
+
+# these are prefixed when called for
 LOCALEDIRS="/usr/share/locale /usr/local/share/locale /usr/kde/?.?/share/locale /opt/sun-jdk-*/jre/lib/locale /opt/sun-jre-bin-*/lib/locale /usr/lib/locale /usr/share/binutils-data/*/*/locale /usr/share/gcc-data/*/*/locale"
 MANPAGEDIRS="/usr/share/man /usr/man /usr/local/share/man /usr/kde/?.?/share/man /usr/kde/?.?/man /opt/sun-jdk-*/man /opt/sun-jre-bin-*/man"
-LOCALELIST="/var/cache/localepurge/localelist"
-CONFIGFILE="/etc/locale.nopurge"
+
+LOCALELIST="${PREFIX}/var/cache/localepurge/localelist"
+CONFIGFILE="${PREFIX}/etc/locale.nopurge"
 VERSION="0.5.4"
 
 LOCALETOTAL=0
@@ -23,7 +28,7 @@ HILITE=$'\e[36;01m'
 BRACKET=$'\e[34;01m'
 BOLD=$'\e[1m'
 
-ACTION="/bin/rm -f"
+ACTION="rm -f"
 
 eerror () {
     echo -e " ${BAD}*${NORMAL} $*" 2> /dev/stderr
@@ -43,7 +48,7 @@ etab () {
 print() {
     for x in $@; do
         if [ "${x}" = "" ]; then return 0
-        else /bin/echo $x
+        else echo $x
         fi
     done
 }
@@ -110,7 +115,7 @@ for x in $@; do
 
     elif [ "$x" = "-verbose" ] || [ "$x" = "-v" ]; then
         VERBOSE=enabled
-        ACTION="/bin/rm -vf"
+        ACTION="rm -vf"
 
     elif [ "$x" = "-version" ] ; then
         version
@@ -191,7 +196,7 @@ purgelocale () {
             einfo "localepurge: processing locale files in ${LOCALEDIR} ..."
         fi
 
-        for LOCALE in `/bin/ls ${LOCALEDIR}`; do
+        for LOCALE in `ls ${LOCALEDIR}`; do
             if echo "${PURGELIST}" | grep -xq ${LOCALE}; then
                 if [ -d ${LOCALEDIR}/${LOCALE}/LC_MESSAGES ]; then
                     if [ "${LIST}" = "enabled" ]; then 
@@ -223,7 +228,7 @@ purgeman () {
             einfo "localepurge: processing man pages in ${MANPAGEDIR} ..."
         fi
 
-        for LOCALE in `/bin/ls ${MANPAGEDIR} | grep -v ^man[1-9]`; do
+        for LOCALE in `ls ${MANPAGEDIR} | grep -v ^man[1-9]`; do
             if echo "${PURGELIST}" | grep -xq ${LOCALE}; then
                 if [ -d ${MANPAGEDIR}/${LOCALE} ]; then
                     if [ "${LIST}" = "enabled" ]; then
@@ -252,11 +257,11 @@ purgeman () {
     ewarn "If not pretending, localepurge would delete the following files:\n"
 
 for folder in ${LOCALEDIRS}; do
-    purgelocale "$folder"
+    purgelocale "${PREFIX}$folder"
 done
 
 for folder in ${MANPAGEDIRS}; do
-    purgeman "$folder"
+    purgeman "${PREFIX}$folder"
 done
 
 # Calculating and reporting total disk space freed:
