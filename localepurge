@@ -41,9 +41,6 @@ ewarn () {
 einfo () {
     echo -e " ${GOOD}*${NORMAL} $*"
 }
-etab () {
-    echo -e " ${GOOD}*${NORMAL} $*"
-}
 
 print() {
     for x in $@; do
@@ -61,13 +58,13 @@ ayuda () {
     echo
     einfo "Usage: `basename $0` [options]"
     echo
-    etab "${BOLD}-debug (-d)    ${NORMAL}  : debug mode."
-    etab "${BOLD}-help (-h)	${NORMAL}  : show this help."    
-    etab "${BOLD}-list (-l)	${NORMAL}  : list directories to be cleared"
-    etab "${BOLD}-nocolor (-nc) ${NORMAL}  : no color mode."
-    etab "${BOLD}-pretend (-p)  ${NORMAL}  : pretend mode."
-    etab "${BOLD}-verbose (-v)	${NORMAL}  : verbose mode."
-    etab "${BOLD}-version	${NORMAL}  : show version."
+    einfo "${BOLD}-debug (-d)    ${NORMAL}  : debug mode."
+    einfo "${BOLD}-help (-h)     ${NORMAL}  : show this help."    
+    einfo "${BOLD}-list (-l)     ${NORMAL}  : list directories to be cleared"
+    einfo "${BOLD}-nocolor (-nc) ${NORMAL}  : no color mode."
+    einfo "${BOLD}-pretend (-p)  ${NORMAL}  : pretend mode."
+    einfo "${BOLD}-verbose (-v)  ${NORMAL}  : verbose mode."
+    einfo "${BOLD}-version       ${NORMAL}  : show version."
     echo
 }
 
