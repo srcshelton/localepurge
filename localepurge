@@ -13,7 +13,10 @@ LOCALEDIRS="/usr/share/locale /usr/local/share/locale /usr/kde/?.?/share/locale 
 MANPAGEDIRS="/usr/share/man /usr/man /usr/local/share/man /usr/kde/?.?/share/man /usr/kde/?.?/man /opt/sun-jdk-*/man /opt/sun-jre-bin-*/man"
 
 LOCALELIST="${PREFIX}/var/cache/localepurge/localelist"
+LOCALELIST_GLIBC="${PREFIX}/var/cache/localepurge/localelist-glibc"
+LOCALELIST_EXTRA="${PREFIX}/var/cache/localepurge/localelist-extra"
 CONFIGFILE="${PREFIX}/etc/locale.nopurge"
+
 VERSION="0.5.4"
 
 LOCALETOTAL=0
@@ -70,6 +73,25 @@ ayuda () {
 
 version () {
     einfo "${BRACKET}[${NORMAL} ${GOOD}${VERSION}${NORMAL} ${BRACKET}]${NORMAL}"
+}
+
+# Creates new localelist 
+# from glibc supported locales and the packaged extra locales
+
+createlist() {
+    if [ "$VERBOSE" = "enabled" ]; then
+        einfo "localepurge: updating list of locales in ${LOCALELIST} ..."
+    fi
+
+    # select all supported glibc locales
+    localeworkfile=$(mktemp)
+    cat /usr/share/i18n/SUPPORTED | cut -d ' ' -f 1 > ${localeworkfile}
+    cat /usr/share/i18n/SUPPORTED | cut -d '_' -f 1 | uniq >> ${localeworkfile}
+    cat ${localeworkfile} | sort > ${LOCALELIST_GLIBC}
+    rm ${localeworkfile}
+
+    # add the extra locales
+    cat ${LOCALELIST_GLIBC} ${LOCALELIST_EXTRA} | sort | uniq > ${LOCALELIST}
 }
 
 # Check options in CONFIGFILE
@@ -150,10 +172,6 @@ else
         exit 0
     fi
 fi
-
-# Prune the locale list using CONFIGFILE as a list of regex patterns:
-
-PURGELIST=`grep -xvf ${CONFIGFILE} "${LOCALELIST}"`
 
 
 # Deleting a filepath and optionally counting freed space
@@ -246,6 +264,17 @@ purgeman () {
         fi
     fi
 }
+
+# If running for the first time, create new localelist:
+if [ ! -f ${LOCALELIST_GLIBC} ]; then
+    if [ "$VERBOSE" = "enabled" ]; then
+        einfo "localepurge: running for the first time"
+    fi
+    createlist
+fi
+
+# Prune the locale list using CONFIGFILE as a list of regex patterns:
+PURGELIST=`grep -xvf ${CONFIGFILE} "${LOCALELIST}"`
 
 [ "${LIST}" = "enabled" ] && [ "${VERBOSE}" = "enabled" ] &&
     ewarn "If not in list mode, localepurge would clear the following directories:\n"
