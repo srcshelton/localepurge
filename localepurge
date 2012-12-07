@@ -62,10 +62,11 @@ ayuda () {
     einfo "Usage: `basename $0` [options]"
     echo
     einfo "${BOLD}-debug (-d)    ${NORMAL}  : debug mode."
-    einfo "${BOLD}-help (-h)     ${NORMAL}  : show this help."    
-    einfo "${BOLD}-list (-l)     ${NORMAL}  : list directories to be cleared"
+    einfo "${BOLD}-help (-h)     ${NORMAL}  : show this help."
+    einfo "${BOLD}-list (-l)     ${NORMAL}  : list directories to be cleared."
     einfo "${BOLD}-nocolor (-nc) ${NORMAL}  : no color mode."
     einfo "${BOLD}-pretend (-p)  ${NORMAL}  : pretend mode."
+    einfo "${BOLD}-update (-u)   ${NORMAL}  : update localelist."
     einfo "${BOLD}-verbose (-v)  ${NORMAL}  : verbose mode."
     einfo "${BOLD}-version       ${NORMAL}  : show version."
     echo
@@ -131,6 +132,10 @@ for x in $@; do
         PRETEND=enabled
         ACTION=print
         SHOWFREEDSPACE=disabled
+
+    elif [ "$x" = "-update" ] || [ "$x" = "-u" ]; then
+        createlist
+        exit 0
 
     elif [ "$x" = "-verbose" ] || [ "$x" = "-v" ]; then
         VERBOSE=enabled
